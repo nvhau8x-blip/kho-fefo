@@ -1,0 +1,17 @@
+{
+  "name": "Quản Lý Kho Carton & Bao Bì (FEFO)",
+  "short_name": "Kho FEFO",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#064e3b",
+  "theme_color": "#064e3b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
