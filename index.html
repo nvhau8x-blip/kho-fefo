@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Quản Lý Kho Carton & Bao Bì (FEFO)</title>
+
+  <!-- Cấu hình PWA cho Android & iPhone -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#064e3b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kho FEFO">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      user-select: none;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background-color: #cbd5e1;
+      border-radius: 4px;
+    }
+    .row-selected {
+      background-color: #e0f2fe !important;
+      box-shadow: inset 4px 0 0 #dc2626;
+    }
+    .row-selected td,
+    .row-selected td span,
+    .row-selected td div {
+      color: #dc2626 !important;
+      font-weight: 700 !important;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans p-2 md:p-4 relative">
+
+  <!-- Header -->
+  <header class="bg-emerald-900 text-white rounded-xl shadow-md p-4 mb-4">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-emerald-800/80 rounded-lg text-2xl">📦</div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">Quản Lý Tồn Kho Carton & Bao Bì (Dãy C & D)</h1>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="openUserModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-700 hover:bg-sky-600 active:scale-95 transition border border-sky-500/50 rounded-lg text-xs font-bold text-white shadow-sm" title="Nhấp để đổi người trực ca">
+          👤 <span id="headerOperatorName">Chưa chọn tên</span>
+          <span class="text-[10px] bg-sky-900/60 px-1.5 py-0.5 rounded ml-1">Đổi</span>
+        </button>
+
+        <span id="syncStatusBadge" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-800/70 border border-emerald-600/50 rounded-lg text-xs font-medium text-emerald-100">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          Đang kết nối...
+        </span>
+        <button onclick="fetchSheetData(true)" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 active:scale-95 transition text-xs font-medium rounded-lg shadow-sm flex items-center gap-1.5">
+          🔄 Đồng bộ ngay
+        </button>
+        <button onclick="exportToExcel()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 active:scale-95 transition text-xs font-medium rounded-lg shadow-sm flex items-center gap-1.5 text-white">
+          📥 Xuất Excel
+        </button>
+        <button id="installAppBtn" onclick="triggerInstallPWA()" class="hidden px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 text-white border border-indigo-400/50">
+          📲 Cài App
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- KPI Cards -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+      <div>
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng vị trí (BIN)</p>
+        <h3 id="kpiTotalBins" class="text-2xl font-black text-slate-800 mt-0.5">82</h3>
+        <p class="text-[11px] text-slate-400">Dãy C & D (Chuẩn 82 BIN)</p>
+      </div>
+      <div class="text-slate-300 text-3xl">🗄️</div>
+    </div>
+
+    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+      <div>
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng Pallet tồn (PL)</p>
+        <h3 id="kpiTotalPL" class="text-2xl font-black text-blue-600 mt-0.5">0</h3>
+        <p id="kpiOccupancyRate" class="text-[11px] text-slate-500 font-medium">Lấp đầy: 0% / 2.422 PL</p>
+      </div>
+      <div class="text-blue-100 text-3xl">📊</div>
+    </div>
+
+    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+      <div>
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vị trí có hàng</p>
+        <h3 id="kpiOccupiedBins" class="text-2xl font-black text-emerald-600 mt-0.5">0</h3>
+        <p class="text-[11px] text-slate-500">BIN có Qty(PL) > 0</p>
+      </div>
+      <div class="text-emerald-100 text-3xl">📦</div>
+    </div>
+
+    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+      <div>
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vị trí đang trống</p>
+        <h3 id="kpiEmptyBins" class="text-2xl font-black text-amber-600 mt-0.5">0</h3>
+        <p class="text-[11px] text-amber-600 font-medium">Sẵn sàng nhập hàng</p>
+      </div>
+      <div class="text-amber-100 text-3xl">🚪</div>
+    </div>
+  </section>
+
+  <!-- Thanh tìm kiếm & Nút chọn nhanh theo 4 SKU FEST case -->
+  <section class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-4 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+    <div class="relative w-full lg:w-80 shrink-0">
+      <input type="text" id="searchInput" oninput="handleSearchInput()" placeholder="🔍 Tìm thêm BIN, NCC, ngày SX trên bộ lọc..." class="w-full text-xs pl-3 pr-8 py-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+      <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 text-[11px] font-bold flex items-center justify-center" title="Xóa tìm kiếm">✕</button>
+    </div>
+
+    <div id="quickFilterButtons" class="flex flex-wrap items-center gap-1.5 flex-1">
+      <button onclick="setQuickFilter('ALL')" data-filter="ALL" class="filter-chip active px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-emerald-800 text-white border border-emerald-800">
+        Tất cả
+      </button>
+      <button onclick="setQuickFilter('HC SILVER 250')" data-filter="HC SILVER 250" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
+        HC SILVER 250
+      </button>
+      <button onclick="setQuickFilter('HC SILVER 330')" data-filter="HC SILVER 330" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
+        HC SILVER 330
+      </button>
+      <button onclick="setQuickFilter('TC CY 330')" data-filter="TC CY 330" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
+        TC CY 330
+      </button>
+      <button onclick="setQuickFilter('TC CY 250')" data-filter="TC CY 250" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
+        TC CY 250
+      </button>
+      <button onclick="setQuickFilter('EMPTY')" data-filter="EMPTY" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200">
+        🚪 BIN Trống
+      </button>
+    </div>
+  </section>
+
+  <!-- Table View -->
+  <main class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="overflow-x-auto max-h-[650px] custom-scroll">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead class="bg-emerald-900 text-white font-semibold">
+          <tr>
+            <th onclick="toggleSort('bin')" class="py-3 px-3 w-16 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
+              <div class="flex items-center justify-center gap-1">1. BIN <span id="sort_icon_bin">⇅</span></div>
+            </th>
+            <th onclick="toggleSort('sku')" class="py-3 px-3 border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
+              <div class="flex items-center gap-1">2. SKU <span id="sort_icon_sku">⇅</span></div>
+            </th>
+            <th onclick="toggleSort('remaining')" class="py-3 px-3 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
+              <div class="flex items-center justify-center gap-1">3. Utilization <span id="sort_icon_remaining">⇅</span></div>
+            </th>
+            <th onclick="toggleSort('prodDate')" class="py-3 px-3 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition bg-emerald-800/80">
+              <div class="flex items-center justify-center gap-1 text-amber-300">4. Prod.date <span id="sort_icon_prodDate">▼</span></div>
+            </th>
+            <th onclick="toggleSort('qtyPL')" class="py-3 px-3 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
+              <div class="flex items-center justify-center gap-1">5. Qty (PL) <span id="sort_icon_qtyPL">⇅</span></div>
+            </th>
+            <th onclick="toggleSort('supplier')" class="py-3 px-3 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
+              <div class="flex items-center justify-center gap-1">6. Supplier <span id="sort_icon_supplier">⇅</span></div>
+            </th>
+            <th onclick="toggleSort('capacity')" class="py-3 px-3 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
+              <div class="flex items-center justify-center gap-1">7. Capacity <span id="sort_icon_capacity">⇅</span></div>
+            </th>
+          </tr>
+        </thead>
+        <tbody id="inventoryTableBody" class="divide-y divide-slate-100">
+          <tr>
+            <td colspan="7" class="text-center py-10 text-slate-400">Đang tải dữ liệu trực tiếp từ Google Sheets...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- ================= POPUP 1: AI ĐANG DÙNG MÁY NÀY? (ĐẦU CA) ================= -->
+  <div id="userSelectModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200">
+      <div class="p-6 space-y-4">
+        <div>
+          <h3 class="text-xl font-black text-[#1e436d] tracking-tight uppercase">AI ĐANG DÙNG MÁY NÀY?</h3>
+          <p class="text-xs text-slate-500 mt-1">Nhập tên của bạn để bắt đầu ca làm việc.</p>
+        </div>
+
+        <div>
+          <input type="text" id="operatorInput" placeholder="Nhập tên (VD: Mr Hậu, Phước FLD...)" onkeydown="if(event.key==='Enter') confirmOperator()" class="w-full px-4 py-3 text-base font-bold text-slate-900 bg-white border-2 border-[#1e436d] rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
+        </div>
+
+        <button onclick="confirmOperator()" class="w-full py-3.5 px-4 bg-[#2c537a] hover:bg-[#224263] active:scale-[0.98] transition rounded-xl text-white font-black text-sm tracking-wider shadow-md uppercase">
+          BẮT ĐẦU
+        </button>
+
+        <div id="recentUsersSection" class="pt-2 hidden">
+          <p class="text-xs text-slate-500 mb-2">Tên đã dùng gần đây</p>
+          <div id="recentUsersList" class="space-y-2 max-h-40 overflow-y-auto custom-scroll"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= POPUP 2: BÁO LỖI VỊ TRÍ ================= -->
+  <div id="errorModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200">
+      <div class="p-5 space-y-4">
+        <h3 class="text-lg font-black text-[#1e436d] tracking-tight uppercase">BÁO LỖI VỊ TRÍ</h3>
+
+        <div class="space-y-1.5 text-sm">
+          <div class="flex items-baseline">
+            <span class="w-24 text-slate-500 font-medium">Vị trí</span>
+            <span id="modalBin" class="font-black text-slate-900 text-lg">---</span>
+          </div>
+          <div class="flex items-baseline">
+            <span class="w-24 text-slate-500 font-medium">Mã hàng</span>
+            <span id="modalItem" class="font-bold text-slate-800">---</span>
+          </div>
+          <div class="flex items-baseline">
+            <span class="w-24 text-slate-500 font-medium">SKU</span>
+            <span id="modalSku" class="font-bold text-slate-800 truncate">---</span>
+          </div>
+          <div class="flex items-baseline">
+            <span class="w-24 text-slate-500 font-medium">Ngày SX</span>
+            <span id="modalDate" class="font-bold text-slate-800 font-mono">---</span>
+          </div>
+        </div>
+
+        <div class="space-y-2.5 pt-2">
+          <button onclick="sendErrorReport('ĐÃ XUẤT HẾT')" class="w-full py-3.5 px-4 bg-[#992222] hover:bg-[#801b1b] active:scale-[0.98] transition rounded-xl text-white font-black text-sm tracking-wide shadow-md uppercase">
+            ĐÃ XUẤT HẾT
+          </button>
+          <button onclick="sendErrorReport('SAI MẶT HÀNG')" class="w-full py-3.5 px-4 bg-[#b46908] hover:bg-[#9c5a05] active:scale-[0.98] transition rounded-xl text-white font-black text-sm tracking-wide shadow-md uppercase">
+            SAI MẶT HÀNG
+          </button>
+          <button onclick="sendErrorReport('SAI DATE')" class="w-full py-3.5 px-4 bg-[#6f4284] hover:bg-[#5e3770] active:scale-[0.98] transition rounded-xl text-white font-black text-sm tracking-wide shadow-md uppercase">
+            SAI DATE
+          </button>
+        </div>
+
+        <div class="pt-2 border-t border-slate-100">
+          <p class="text-xs italic text-slate-500 mb-2.5">Người báo: <span id="modalReporterName" class="font-semibold text-slate-700">---</span></p>
+          <button onclick="closeErrorModal()" class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-sm rounded-xl transition">
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const GVIZ_URL = 'https://docs.google.com/spreadsheets/d/1tOhzY2j2NusXQJlXJEMN8dJDPv1Gzbvkq_nSLigVHdY/gviz/tq?tqx=out:csv&sheet=TODAY';
+    const ZALO_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbz5AA-LAH-w4P3sTpmMZi7HCkq7zn6sDx-fpmuEXIQIMckZP0aEfAPOWQH2-19BGK9pWw/exec';
+
+    const BIN_CAPACITY_MAP = {
+      "C01":22,"C03":22,"C05":22,"C07":22,"C09":22,"C11":22,"C13":22,"C15":22,"C17":22,"C19":22,
+      "C21":22,"C23":22,"C25":22,"C27":22,"C31":22,"C33":22,"C35":22,"C37":22,"C39":22,"C41":22,
+      "C43":22,"C45":22,"C47":22,"C49":22,"C51":22,"C53":22,"C55":22,"C57":30,"C59":22,"C61":22,
+      "C63":22,"C65":20,"C67":22,
+      "C02":38,"C04":38,"C06":38,"C08":38,"C10":38,"C12":38,"C14":38,"C16":38,"C18":38,"C20":38,"C22":38,
+      "C24":26,"C26":26,"C28":26,
+      "C32":34,"C34":34,"C36":34,"C38":34,"C40":34,"C42":34,"C44":34,"C46":34,"C48":34,
+      "C50":34,"C52":34,"C54":34,"C56":34,"C58":34,"C60":34,"C62":34,"C64":34,"C66":34,
+      "D01":34,"D03":34,"D05":34,"D07":34,"D09":34,"D49":34,"D51":34,"D53":34,"D55":34,"D57":34,
+      "D59":36,"D61":36,"D10":34,"D08":34,"D06":34,"D04":34,"D02":34
+    };
+
+    // ================= KÍCH HOẠT PWA & NÚT CÀI APP =================
+    let deferredPrompt = null;
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('installAppBtn').classList.remove('hidden');
+    });
+
+    // Hiển thị nút hướng dẫn cài cho iPhone nếu đang mở bằng Safari và chưa cài ra màn hình chính
+    window.addEventListener('DOMContentLoaded', () => {
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+      if (isIOS && !isStandalone) {
+        document.getElementById('installAppBtn').classList.remove('hidden');
+      }
+    });
+
+    async function triggerInstallPWA() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          document.getElementById('installAppBtn').classList.add('hidden');
+        }
+        deferredPrompt = null;
+      } else {
+        alert('📲 CÁCH CÀI APP LÊN MÀN HÌNH CHÍNH:\n\n• Trên iPhone (Safari): Bấm biểu tượng Chia sẻ (ô vuông mũi tên lên) ở dưới cùng -> chọn "Thêm vào Màn hình chính".\n• Trên Android (Chrome): Bấm dấu 3 chấm góc trên bên phải -> chọn "Cài đặt ứng dụng" hoặc "Thêm vào Màn hình chính".');
+      }
+    }
+
+    // ================= QUY ĐỔI TÊN VIẾT TẮT CHO 4 SKU FEST CASE =================
+    function getStandardAbbr(sku, desc) {
+      const combined = `${sku || ''} ${desc || ''}`.toUpperCase().trim();
+      if (!combined || combined.includes("CAN AI")) return "";
+
+      if (combined.includes("CASE")) {
+        if (combined.includes("SILVER 250")) return "HC SILVER 250";
+        if (combined.includes("SILVER 330")) return "HC SILVER 330";
+        if (combined.includes("CRYS 330") || combined.includes("CRYSTAL 330")) return "TC CY 330";
+        if (combined.includes("CRYS 250") || combined.includes("CRYSTAL 250")) return "TC CY 250";
+      }
+      return "";
+    }
+
+    let inventory = [];
+    let currentQuickFilter = 'ALL';
+    let currentSortColumn = 'PROD_CLOSEST';
+    let currentSortDirection = 'asc';
+    let selectedRowBin = null;
+    let activeModalItem = null;
+    let currentOperator = '';
+
+    function setQuickFilter(filterValue) {
+      if (currentQuickFilter === filterValue && filterValue !== 'ALL') {
+        filterValue = 'ALL';
+      }
+      currentQuickFilter = filterValue;
+
+      document.querySelectorAll('.filter-chip').forEach(btn => {
+        const val = btn.getAttribute('data-filter');
+        if (val === filterValue) {
+          btn.className = 'filter-chip active px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-emerald-800 text-white border border-emerald-800';
+        } else if (val === 'EMPTY') {
+          btn.className = 'filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200';
+        } else {
+          btn.className = 'filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200';
+        }
+      });
+
+      const searchEl = document.getElementById('searchInput');
+      if (filterValue === 'ALL') {
+        searchEl.placeholder = '🔍 Tìm BIN, SKU, NCC (VD: OJT, D04...)...';
+      } else if (filterValue === 'EMPTY') {
+        searchEl.placeholder = '🔍 Tìm tiếp trong danh sách BIN Trống...';
+      } else {
+        searchEl.placeholder = `🔍 Đang lọc [${filterValue}] — gõ thêm BIN, NCC...`;
+      }
+
+      renderTable();
+    }
+
+    function handleSearchInput() {
+      const val = document.getElementById('searchInput').value;
+      const clearBtn = document.getElementById('clearSearchBtn');
+      if (val.trim().length > 0) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+      renderTable();
+    }
+
+    function clearSearch() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('clearSearchBtn').classList.add('hidden');
+      renderTable();
+    }
+
+    function initUserSession() {
+      const savedRecent = JSON.parse(localStorage.getItem('kho_recent_users') || '["Mr Hậu"]');
+      const lastUser = localStorage.getItem('kho_current_user') || '';
+
+      if (lastUser) {
+        document.getElementById('operatorInput').value = lastUser;
+      }
+      renderRecentUsers(savedRecent);
+      document.getElementById('userSelectModal').classList.remove('hidden');
+    }
+
+    function renderRecentUsers(usersList) {
+      const section = document.getElementById('recentUsersSection');
+      const container = document.getElementById('recentUsersList');
+
+      if (!usersList || usersList.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+
+      section.classList.remove('hidden');
+      container.innerHTML = usersList.map(name => `
+        <button onclick="selectQuickUser('${name.replace(/'/g, "\\'")}')" class="w-full py-2.5 px-4 bg-slate-50 hover:bg-sky-50 border border-slate-200 hover:border-sky-300 rounded-xl text-sm font-bold text-slate-800 text-center transition">
+          ${name}
+        </button>
+      `).join('');
+    }
+
+    function selectQuickUser(name) {
+      document.getElementById('operatorInput').value = name;
+      confirmOperator();
+    }
+
+    function confirmOperator() {
+      const inputVal = document.getElementById('operatorInput').value.trim();
+      if (!inputVal) {
+        alert('Vui lòng nhập tên của bạn để bắt đầu ca làm việc!');
+        document.getElementById('operatorInput').focus();
+        return;
+      }
+
+      currentOperator = inputVal;
+      try {
+        localStorage.setItem('kho_current_user', currentOperator);
+        let recent = JSON.parse(localStorage.getItem('kho_recent_users') || '[]');
+        recent = [currentOperator, ...recent.filter(u => u.toLowerCase() !== currentOperator.toLowerCase())].slice(0, 5);
+        localStorage.setItem('kho_recent_users', JSON.stringify(recent));
+      } catch (e) {}
+
+      document.getElementById('headerOperatorName').innerText = currentOperator;
+      document.getElementById('userSelectModal').classList.add('hidden');
+
+      logUserAccess(currentOperator);
+    }
+
+    function logUserAccess(operatorName) {
+      try {
+        if (typeof ZALO_WEBHOOK_URL === 'undefined' || !ZALO_WEBHOOK_URL) return;
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        const deviceInfo = (isMobile ? "Điện thoại" : "Máy tính") + (isApp ? " (App PWA)" : " (Web)");
+
+        fetch(ZALO_WEBHOOK_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: "LOG_ACCESS",
+            operator: operatorName,
+            device: deviceInfo
+          })
+        }).catch(() => {});
+      } catch (err) {}
+    }
+
+    function openUserModal() {
+      const savedRecent = JSON.parse(localStorage.getItem('kho_recent_users') || '["Mr Hậu"]');
+      document.getElementById('operatorInput').value = currentOperator;
+      renderRecentUsers(savedRecent);
+      document.getElementById('userSelectModal').classList.remove('hidden');
+    }
+
+    function parseDateToObj(dateStr) {
+      if (!dateStr || dateStr.trim() === '' || dateStr === '-') return null;
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      }
+      return null;
+    }
+
+    function parseDate(raw) {
+      if (!raw || raw.toString().trim() === '' || raw.toString().trim() === '-') return '';
+      let s = raw.toString().trim();
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        const p = s.split('/');
+        return `${p[0].padStart(2, '0')}/${p[1].padStart(2, '0')}/${p[2]}`;
+      }
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+        const p = s.split('T')[0].split('-');
+        return `${p[2]}/${p[1]}/${p[0]}`;
+      }
+      if (!isNaN(s) && Number(s) > 40000 && Number(s) < 60000) {
+        const dateObj = new Date(Math.round((Number(s) - 25569) * 86400 * 1000));
+        const day = String(dateObj.getUTCDate()).padStart(2, '0');
+        const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+        return `${day}/${month}/${dateObj.getUTCFullYear()}`;
+      }
+      return s;
+    }
+
+    async function fetchSheetData(isManual = false) {
+      const badge = document.getElementById('syncStatusBadge');
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-spin"></span> Đang đồng bộ...`;
+
+      try {
+        const fetchUrl = `${GVIZ_URL}&_nocache=${Date.now()}`;
+        const res = await fetch(fetchUrl, {
+          cache: 'no-store',
+          headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+        });
+
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const text = await res.text();
+
+        const wb = XLSX.read(text, { type: 'string', raw: true });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const grid = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' });
+
+        processGridData(grid);
+
+        const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Trực tuyến: ${timeStr}`;
+      } catch (err) {
+        console.error("Lỗi đồng bộ GViz:", err);
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-400"></span> Lỗi tải dữ liệu`;
+      }
+    }
+
+    function processGridData(grid) {
+      const binRegex = /^[CD]\d{2}$/i;
+      const rawRows = [];
+
+      for (let r = 0; r < grid.length; r++) {
+        const row = grid[r];
+        if (!row || row.length === 0) continue;
+
+        const bin = (row[0] || '').toString().trim().toUpperCase();
+        if (bin === 'C29') continue;
+
+        if (binRegex.test(bin)) {
+          const capacity = BIN_CAPACITY_MAP[bin] || (bin.startsWith('C') ? 22 : 34);
+
+          let prodDate = parseDate(row[2]);
+          let qtyPL = parseInt(row[3]) || 0;
+          let supplier = (row[6] || '').toString().trim();
+          let sku = (row[1] || row[19] || '').toString().trim();
+          let desc = (row[19] || row[1] || '').toString().trim();
+          let itemCode = (row[9] || '').toString().trim();
+          let isCase = `${sku} ${desc}`.toUpperCase().includes('CASE');
+          let shortName = getStandardAbbr(sku, desc);
+
+          rawRows.push({ bin, capacity, prodDate, qtyPL, supplier, sku, desc, itemCode, isCase, shortName });
+        }
+      }
+
+      const grouped = {};
+      rawRows.forEach(row => {
+        if (!grouped[row.bin]) grouped[row.bin] = [];
+        grouped[row.bin].push(row);
+      });
+
+      const finalRows = [];
+      Object.keys(grouped).forEach(bin => {
+        const entries = grouped[bin];
+        const withStock = entries.filter(e => e.qtyPL > 0 || e.sku !== '');
+        if (withStock.length > 0) {
+          finalRows.push(...withStock);
+        } else {
+          finalRows.push(entries[0]);
+        }
+      });
+
+      const binTotalPLMap = {};
+      finalRows.forEach(item => {
+        binTotalPLMap[item.bin] = (binTotalPLMap[item.bin] || 0) + item.qtyPL;
+      });
+
+      finalRows.forEach(item => {
+        const totalUsed = binTotalPLMap[item.bin] || 0;
+        item.remaining = Math.max(0, item.capacity - totalUsed);
+      });
+
+      if (finalRows.length > 0) {
+        inventory = finalRows;
+        updateKPIs();
+        renderTable();
+      }
+    }
+
+    function updateKPIs() {
+      const uniqueBins = [...new Set(inventory.map(i => i.bin))];
+      const totalBins = uniqueBins.length;
+
+      const occupiedBins = uniqueBins.filter(b => {
+        const items = inventory.filter(i => i.bin === b);
+        return items.some(i => i.qtyPL > 0);
+      }).length;
+
+      const emptyBins = totalBins - occupiedBins;
+      const totalPL = inventory.reduce((sum, i) => sum + i.qtyPL, 0);
+
+      const totalCap = uniqueBins.reduce((sum, b) => sum + (BIN_CAPACITY_MAP[b] || (b.startsWith('C') ? 22 : 34)), 0);
+      const rate = totalCap > 0 ? Math.round((totalPL / totalCap) * 100) : 0;
+
+      document.getElementById('kpiTotalBins').innerText = totalBins;
+      document.getElementById('kpiTotalPL').innerText = totalPL.toLocaleString('vi-VN');
+      document.getElementById('kpiOccupancyRate').innerText = `Lấp đầy: ${rate}% / ${totalCap.toLocaleString('vi-VN')} PL`;
+      document.getElementById('kpiOccupiedBins').innerText = occupiedBins;
+      document.getElementById('kpiEmptyBins').innerText = emptyBins;
+    }
+
+    function toggleSort(columnKey) {
+      if (currentSortColumn === columnKey) {
+        currentSortDirection = (currentSortDirection === 'asc') ? 'desc' : 'asc';
+      } else {
+        currentSortColumn = columnKey;
+        currentSortDirection = 'asc';
+      }
+      updateSortIcons();
+      renderTable();
+    }
+
+    function updateSortIcons() {
+      const cols = ['bin', 'sku', 'remaining', 'prodDate', 'qtyPL', 'supplier', 'capacity'];
+      cols.forEach(c => {
+        const el = document.getElementById(`sort_icon_${c}`);
+        if (!el) return;
+        if (currentSortColumn === c) {
+          el.innerText = currentSortDirection === 'asc' ? '▲' : '▼';
+          el.className = 'text-amber-300 font-bold';
+        } else {
+          el.innerText = '⇅';
+          el.className = 'text-emerald-300/60 font-normal';
+        }
+      });
+    }
+
+    function getPriorityRank(item) {
+      if (item.qtyPL > 0 && item.remaining > 0) return 1;
+      if (item.qtyPL > 0 && item.remaining <= 0) return 2;
+      return 3;
+    }
+
+    function selectRow(binKey) {
+      selectedRowBin = binKey;
+      renderTable();
+
+      const item = inventory.find(i => i.bin === binKey);
+      if (item) {
+        activeModalItem = item;
+        document.getElementById('modalBin').innerText = item.bin;
+        document.getElementById('modalItem').innerText = item.itemCode || '---';
+        document.getElementById('modalSku').innerText = item.sku || item.desc || '---';
+        document.getElementById('modalDate').innerText = item.prodDate || '---';
+        document.getElementById('modalReporterName').innerText = currentOperator || 'Chưa xác định';
+        document.getElementById('errorModal').classList.remove('hidden');
+      }
+    }
+
+    function closeErrorModal() {
+      document.getElementById('errorModal').classList.add('hidden');
+    }
+
+    async function sendErrorReport(errorType) {
+      if (!activeModalItem) return;
+
+      const payload = {
+        bin: activeModalItem.bin,
+        item: activeModalItem.itemCode || 'N/A',
+        sku: activeModalItem.sku || activeModalItem.desc || 'N/A',
+        prodDate: activeModalItem.prodDate || '-',
+        errorType: errorType,
+        reporter: currentOperator || 'Khách'
+      };
+
+      try {
+        await fetch(ZALO_WEBHOOK_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        alert(`✅ Đã gửi báo lỗi [${payload.errorType}] tại vị trí ${payload.bin} về nhóm Zalo!`);
+        closeErrorModal();
+      } catch (err) {
+        alert('Có lỗi khi gửi tin nhắn Zalo, vui lòng thử lại.');
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('inventoryTableBody');
+      const search = document.getElementById('searchInput').value.toLowerCase().trim();
+
+      let filtered = inventory.filter(item => {
+        if (currentQuickFilter === 'EMPTY') {
+          if (item.qtyPL > 0) return false;
+        } else if (currentQuickFilter !== 'ALL') {
+          if (!item.isCase || item.shortName !== currentQuickFilter) return false;
+        }
+
+        if (search) {
+          const matchStr = `${item.bin} ${item.shortName} ${item.sku} ${item.desc} ${item.supplier} ${item.prodDate} ${item.itemCode}`.toLowerCase();
+          const keywords = search.split(/\s+/);
+          const isMatchAll = keywords.every(kw => matchStr.includes(kw));
+          if (!isMatchAll) return false;
+        }
+        return true;
+      });
+
+      const now = new Date().getTime();
+
+      filtered.sort((a, b) => {
+        const rankA = getPriorityRank(a);
+        const rankB = getPriorityRank(b);
+
+        if (currentSortColumn === 'PROD_CLOSEST') {
+          if (rankA === 3 && rankB !== 3) return 1;
+          if (rankB === 3 && rankA !== 3) return -1;
+          if (rankA === 3 && rankB === 3) return a.bin.localeCompare(b.bin);
+
+          const dateA = parseDateToObj(a.prodDate);
+          const dateB = parseDateToObj(b.prodDate);
+
+          if (dateA && dateB) {
+            const diffA = Math.abs(dateA.getTime() - now);
+            const diffB = Math.abs(dateB.getTime() - now);
+
+            if (diffA !== diffB) return diffA - diffB;
+            if (rankA !== rankB) return rankA - rankB;
+            if (b.remaining !== a.remaining) return b.remaining - a.remaining;
+            return a.bin.localeCompare(b.bin);
+          }
+          if (!dateA) return 1;
+          if (!dateB) return -1;
+        }
+
+        if (currentSortColumn === 'prodDate') {
+          const dateA = parseDateToObj(a.prodDate);
+          const dateB = parseDateToObj(b.prodDate);
+          if (!dateA && !dateB) return 0;
+          if (!dateA) return 1;
+          if (!dateB) return -1;
+          return currentSortDirection === 'asc' ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
+        }
+
+        if (['qtyPL', 'remaining', 'capacity'].includes(currentSortColumn)) {
+          const valA = a[currentSortColumn] || 0;
+          const valB = b[currentSortColumn] || 0;
+          return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+        }
+
+        const valA = (a[currentSortColumn] || '').toString();
+        const valB = (b[currentSortColumn] || '').toString();
+        return currentSortDirection === 'asc' ? valA.localeCompare(valB, 'vi') : valB.localeCompare(valA, 'vi');
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-slate-400">Không tìm thấy vị trí BIN phù hợp</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(item => {
+        let utilBadge = '';
+        if (item.remaining <= 0 && item.qtyPL > 0) {
+          utilBadge = `<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">BIN Đầy</span>`;
+        } else if (item.qtyPL === 0) {
+          utilBadge = `<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Trống ${item.capacity} PL</span>`;
+        } else {
+          utilBadge = `<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">Nhập thêm: ${item.remaining} PL</span>`;
+        }
+
+        const dateHtml = item.prodDate
+          ? `<span class="font-mono font-bold text-red-600">${item.prodDate}</span>`
+          : `<span class="text-slate-300">-</span>`;
+
+        const isSelected = selectedRowBin === item.bin;
+        const rowClass = isSelected 
+          ? 'row-selected border-b border-sky-300 cursor-pointer transition' 
+          : 'hover:bg-slate-50 transition border-b border-slate-100 cursor-pointer';
+
+        const skuHtml = item.sku
+          ? `<span class="text-slate-800 font-semibold">${item.sku}</span>`
+          : `<span class="text-slate-300 italic font-normal">Ô trống (chưa có hàng)</span>`;
+
+        return `
+          <tr onclick="selectRow('${item.bin}')" class="${rowClass}">
+            <td class="py-2.5 px-3 text-center">
+              <span class="inline-block px-2 py-0.5 bg-slate-900 text-white font-mono font-bold text-xs rounded shadow-sm">
+                ${item.bin}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 font-medium">${skuHtml}</td>
+            <td class="py-2.5 px-3 text-center">${utilBadge}</td>
+            <td class="py-2.5 px-3 text-center">${dateHtml}</td>
+            <td class="py-2.5 px-3 text-center font-bold font-mono">${item.qtyPL > 0 ? item.qtyPL : `<span class="text-slate-300 font-normal">0</span>`}</td>
+            <td class="py-2.5 px-3 text-center">
+              ${item.supplier ? `<span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[11px] font-medium border border-slate-200">${item.supplier}</span>` : `<span class="text-slate-300">-</span>`}
+            </td>
+            <td class="py-2.5 px-3 text-center font-mono font-medium">${item.capacity}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function exportToExcel() {
+      const dataToExport = inventory.map(item => ({
+        "BIN": item.bin,
+        "SKU": item.sku,
+        "Utilization": item.remaining <= 0 ? "BIN Đầy" : `Nhập thêm: ${item.remaining} PL`,
+        "Prod.date": item.prodDate,
+        "Qty (PL)": item.qtyPL,
+        "Supplier": item.supplier,
+        "Capacity": item.capacity
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "FEFO_Day_C_D");
+      XLSX.writeFile(wb, `TonKho_FEFO_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initUserSession();
+      fetchSheetData();
+      setInterval(() => fetchSheetData(false), 30000);
+    });
+  </script>
+</body>
+</html>
