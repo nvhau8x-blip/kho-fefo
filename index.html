@@ -719,10 +719,13 @@
         const rankB = getPriorityRank(b);
 
         if (currentSortColumn === 'PROD_CLOSEST') {
-          if (rankA === 3 && rankB !== 3) return 1;
-          if (rankB === 3 && rankA !== 3) return -1;
-          if (rankA === 3 && rankB === 3) return a.bin.localeCompare(b.bin);
+          // Ưu tiên nhóm: 1 (Còn chỗ nhập thêm) -> 2 (BIN Đầy) -> 3 (BIN Trống)
+          if (rankA !== rankB) return rankA - rankB;
 
+          // Nếu cùng là BIN Trống (rank 3) thì xếp theo tên BIN A -> Z
+          if (rankA === 3) return a.bin.localeCompare(b.bin);
+
+          // Trong cùng nhóm 1 hoặc cùng nhóm 2: ưu tiên ngày SX gần hiện tại nhất (FEFO)
           const dateA = parseDateToObj(a.prodDate);
           const dateB = parseDateToObj(b.prodDate);
 
@@ -731,7 +734,6 @@
             const diffB = Math.abs(dateB.getTime() - now);
 
             if (diffA !== diffB) return diffA - diffB;
-            if (rankA !== rankB) return rankA - rankB;
             if (b.remaining !== a.remaining) return b.remaining - a.remaining;
             return a.bin.localeCompare(b.bin);
           }
