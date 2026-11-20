@@ -11,12 +11,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Kho FEFO">
-<link rel="apple-touch-icon" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
   <link rel="icon" type="image/png" href="icon.png">
 
-  <!-- Tailwind CSS CDN -->
+  <!-- Tailwind CSS & SheetJS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SheetJS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     thead th {
@@ -24,6 +23,16 @@
       top: 0;
       z-index: 20;
       user-select: none;
+    }
+    .sticky-col-head {
+      position: sticky;
+      left: 0;
+      z-index: 30 !important;
+    }
+    .sticky-col-cell {
+      position: sticky;
+      left: 0;
+      z-index: 10;
     }
     .custom-scroll::-webkit-scrollbar {
       width: 6px;
@@ -33,8 +42,11 @@
       background-color: #cbd5e1;
       border-radius: 4px;
     }
-    .row-selected {
+    .row-selected,
+    .row-selected .sticky-col-cell {
       background-color: #e0f2fe !important;
+    }
+    .row-selected .sticky-col-cell {
       box-shadow: inset 4px 0 0 #dc2626;
     }
     .row-selected td,
@@ -48,141 +60,161 @@
 <body class="bg-slate-50 text-slate-800 font-sans p-2 md:p-4 relative">
 
   <!-- Header -->
-  <header class="bg-emerald-900 text-white rounded-xl shadow-md p-4 mb-4">
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <div class="p-2.5 bg-emerald-800/80 rounded-lg text-2xl">📦</div>
-        <div>
-          <h1 class="text-xl font-bold tracking-tight">Quản Lý Tồn Kho Carton & Bao Bì (Dãy C & D)</h1>
+  <header class="bg-emerald-900 text-white rounded-xl shadow-md p-3 md:p-4 mb-3">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="p-1.5 md:p-2 bg-emerald-800/80 rounded-lg text-xl md:text-2xl">📦</div>
+          <h1 class="text-base md:text-xl font-bold tracking-tight leading-tight">Kho Carton & Bao Bì (C & D)</h1>
         </div>
+        <button id="installAppBtn" onclick="triggerInstallPWA()" class="hidden md:hidden px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition text-xs font-bold rounded-lg shadow-sm flex items-center gap-1 text-white border border-indigo-400/50">
+          📲 Cài App
+        </button>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <button onclick="openUserModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-700 hover:bg-sky-600 active:scale-95 transition border border-sky-500/50 rounded-lg text-xs font-bold text-white shadow-sm" title="Nhấp để đổi người trực ca">
+      <div class="flex flex-wrap items-center gap-1.5 md:gap-2">
+        <button onclick="openUserModal()" class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-sky-700 hover:bg-sky-600 active:scale-95 transition border border-sky-500/50 rounded-lg text-xs font-bold text-white shadow-sm">
           👤 <span id="headerOperatorName">Chưa chọn tên</span>
-          <span class="text-[10px] bg-sky-900/60 px-1.5 py-0.5 rounded ml-1">Đổi</span>
+          <span class="text-[10px] bg-sky-900/60 px-1.5 py-0.5 rounded ml-0.5">Đổi</span>
         </button>
 
-        <span id="syncStatusBadge" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-800/70 border border-emerald-600/50 rounded-lg text-xs font-medium text-emerald-100">
+        <span id="syncStatusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-800/70 border border-emerald-600/50 rounded-lg text-[11px] md:text-xs font-medium text-emerald-100">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           Đang kết nối...
         </span>
-        <button onclick="fetchSheetData(true)" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 active:scale-95 transition text-xs font-medium rounded-lg shadow-sm flex items-center gap-1.5">
-          🔄 Đồng bộ ngay
+
+        <button onclick="fetchSheetData(true)" class="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 active:scale-95 transition text-xs font-medium rounded-lg shadow-sm flex items-center gap-1">
+          🔄 <span class="hidden sm:inline">Đồng bộ</span>
         </button>
-        <button onclick="exportToExcel()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 active:scale-95 transition text-xs font-medium rounded-lg shadow-sm flex items-center gap-1.5 text-white">
-          📥 Xuất Excel
+
+        <button onclick="exportToExcel()" class="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 active:scale-95 transition text-xs font-medium rounded-lg shadow-sm flex items-center gap-1 text-white">
+          📥 <span class="hidden sm:inline">Excel</span>
         </button>
-        <button id="installAppBtn" onclick="triggerInstallPWA()" class="hidden px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 text-white border border-indigo-400/50">
+
+        <button id="installAppBtnDesktop" onclick="triggerInstallPWA()" class="hidden px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition text-xs font-bold rounded-lg shadow-sm items-center gap-1 text-white border border-indigo-400/50">
           📲 Cài App
         </button>
       </div>
     </div>
   </header>
 
-  <!-- KPI Cards -->
-  <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+  <!-- KPI Cards (Thu gọn tối ưu cho Mobile, mở rộng trên PC) -->
+  <section class="grid grid-cols-4 gap-1.5 md:gap-3 mb-3">
+    <div class="bg-white p-2 md:p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
       <div>
-        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng vị trí (BIN)</p>
-        <h3 id="kpiTotalBins" class="text-2xl font-black text-slate-800 mt-0.5">82</h3>
-        <p class="text-[11px] text-slate-400">Dãy C & D (Chuẩn 82 BIN)</p>
+        <p class="text-[10px] md:text-xs font-semibold text-slate-500 uppercase">Tổng BIN</p>
+        <h3 id="kpiTotalBins" class="text-lg md:text-2xl font-black text-slate-800 leading-tight">82</h3>
+        <p class="hidden md:block text-[11px] text-slate-400">Dãy C & D</p>
       </div>
-      <div class="text-slate-300 text-3xl">🗄️</div>
+      <div class="hidden md:block text-slate-300 text-3xl">🗄️</div>
     </div>
 
-    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+    <div class="bg-white p-2 md:p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
       <div>
-        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng Pallet tồn (PL)</p>
-        <h3 id="kpiTotalPL" class="text-2xl font-black text-blue-600 mt-0.5">0</h3>
-        <p id="kpiOccupancyRate" class="text-[11px] text-slate-500 font-medium">Lấp đầy: 0% / 2.422 PL</p>
+        <p class="text-[10px] md:text-xs font-semibold text-slate-500 uppercase">Tồn (PL)</p>
+        <h3 id="kpiTotalPL" class="text-lg md:text-2xl font-black text-blue-600 leading-tight">0</h3>
+        <p id="kpiOccupancyRate" class="text-[10px] md:text-[11px] text-slate-500 font-medium truncate">0%</p>
       </div>
-      <div class="text-blue-100 text-3xl">📊</div>
+      <div class="hidden md:block text-blue-100 text-3xl">📊</div>
     </div>
 
-    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+    <div class="bg-white p-2 md:p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
       <div>
-        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vị trí có hàng</p>
-        <h3 id="kpiOccupiedBins" class="text-2xl font-black text-emerald-600 mt-0.5">0</h3>
-        <p class="text-[11px] text-slate-500">BIN có Qty(PL) > 0</p>
+        <p class="text-[10px] md:text-xs font-semibold text-slate-500 uppercase">Có hàng</p>
+        <h3 id="kpiOccupiedBins" class="text-lg md:text-2xl font-black text-emerald-600 leading-tight">0</h3>
+        <p class="hidden md:block text-[11px] text-slate-500">Qty &gt; 0</p>
       </div>
-      <div class="text-emerald-100 text-3xl">📦</div>
+      <div class="hidden md:block text-emerald-100 text-3xl">📦</div>
     </div>
 
-    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+    <div class="bg-white p-2 md:p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
       <div>
-        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vị trí đang trống</p>
-        <h3 id="kpiEmptyBins" class="text-2xl font-black text-amber-600 mt-0.5">0</h3>
-        <p class="text-[11px] text-amber-600 font-medium">Sẵn sàng nhập hàng</p>
+        <p class="text-[10px] md:text-xs font-semibold text-slate-500 uppercase">BIN Trống</p>
+        <h3 id="kpiEmptyBins" class="text-lg md:text-2xl font-black text-amber-600 leading-tight">0</h3>
+        <p class="hidden md:block text-[11px] text-amber-600 font-medium">Sẵn sàng</p>
       </div>
-      <div class="text-amber-100 text-3xl">🚪</div>
+      <div class="hidden md:block text-amber-100 text-3xl">🚪</div>
     </div>
   </section>
 
-  <!-- Thanh tìm kiếm & Nút chọn nhanh theo 4 SKU FEST case -->
-  <section class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-4 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-    <div class="relative w-full lg:w-80 shrink-0">
-      <input type="text" id="searchInput" oninput="handleSearchInput()" placeholder="🔍 Tìm thêm BIN, NCC, ngày SX trên bộ lọc..." class="w-full text-xs pl-3 pr-8 py-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
-      <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 text-[11px] font-bold flex items-center justify-center" title="Xóa tìm kiếm">✕</button>
+  <!-- Thanh tìm kiếm, Chế độ Nhập/Xuất & 7 Nút lọc SKU -->
+  <section class="bg-white p-2.5 md:p-3 rounded-xl border border-slate-200 shadow-sm mb-3 space-y-2.5">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+      <!-- Ô tìm kiếm -->
+      <div class="relative flex-1">
+        <input type="text" id="searchInput" oninput="handleSearchInput()" placeholder="🔍 Tìm BIN, SKU, NCC, ngày SX..." class="w-full text-xs pl-3 pr-8 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+        <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 text-[11px] font-bold flex items-center justify-center" title="Xóa tìm kiếm">✕</button>
+      </div>
+
+      <!-- Chuyển chế độ Nhập kho / Xuất FEFO -->
+      <div class="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200 shrink-0 self-start sm:self-auto">
+        <button id="modeInboundBtn" onclick="setWorkMode('INBOUND')" class="px-3 py-1.5 rounded-md text-xs font-bold transition bg-emerald-800 text-white shadow-sm">
+          📥 Nhập kho
+        </button>
+        <button id="modeFefoBtn" onclick="setWorkMode('FEFO')" class="px-3 py-1.5 rounded-md text-xs font-bold transition text-slate-600 hover:text-slate-900">
+          📤 Xuất FEFO
+        </button>
+      </div>
     </div>
 
-<div id="quickFilterButtons" class="flex flex-wrap items-center gap-1.5 flex-1">
-      <button onclick="setQuickFilter('ALL')" data-filter="ALL" class="filter-chip active px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-emerald-800 text-white border border-emerald-800">
-        Tất cả
+    <!-- 7 Nút lọc nhanh SKU (có số lượng BIN tự động) -->
+    <div id="quickFilterButtons" class="flex flex-wrap items-center gap-1.5">
+      <button onclick="setQuickFilter('ALL')" data-filter="ALL" class="filter-chip active px-2.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm bg-emerald-800 text-white border border-emerald-800">
+        Tất cả <span class="chip-count opacity-80"></span>
       </button>
-      <button onclick="setQuickFilter('Silver 330 Tết')" data-filter="Silver 330 Tết" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
-        Silver 330 Tết
+      <button onclick="setQuickFilter('Silver 330 Tết')" data-filter="Silver 330 Tết" class="filter-chip px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 border border-slate-200">
+        Silver 330 Tết <span class="chip-count opacity-70"></span>
       </button>
-      <button onclick="setQuickFilter('Silver 250 Tết')" data-filter="Silver 250 Tết" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
-        Silver 250 Tết
+      <button onclick="setQuickFilter('Silver 250 Tết')" data-filter="Silver 250 Tết" class="filter-chip px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 border border-slate-200">
+        Silver 250 Tết <span class="chip-count opacity-70"></span>
       </button>
-      <button onclick="setQuickFilter('Ken 330')" data-filter="Ken 330" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
-        Ken 330
+      <button onclick="setQuickFilter('Ken 330')" data-filter="Ken 330" class="filter-chip px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 border border-slate-200">
+        Ken 330 <span class="chip-count opacity-70"></span>
       </button>
-      <button onclick="setQuickFilter('Ti Cry 330')" data-filter="Ti Cry 330" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
-        Ti Cry 330
+      <button onclick="setQuickFilter('Ti Cry 330')" data-filter="Ti Cry 330" class="filter-chip px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 border border-slate-200">
+        Ti Cry 330 <span class="chip-count opacity-70"></span>
       </button>
-      <button onclick="setQuickFilter('Ti 330')" data-filter="Ti 330" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
-        Ti 330
+      <button onclick="setQuickFilter('Ti 330')" data-filter="Ti 330" class="filter-chip px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 border border-slate-200">
+        Ti 330 <span class="chip-count opacity-70"></span>
       </button>
-      <button onclick="setQuickFilter('Ti Smooth')" data-filter="Ti Smooth" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
-        Ti Smooth
+      <button onclick="setQuickFilter('Ti Smooth')" data-filter="Ti Smooth" class="filter-chip px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 border border-slate-200">
+        Ti Smooth <span class="chip-count opacity-70"></span>
       </button>
-      <button onclick="setQuickFilter('Ti Cry 250')" data-filter="Ti Cry 250" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
-        Ti Cry 250
+      <button onclick="setQuickFilter('Ti Cry 250')" data-filter="Ti Cry 250" class="filter-chip px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 border border-slate-200">
+        Ti Cry 250 <span class="chip-count opacity-70"></span>
       </button>
-      <button onclick="setQuickFilter('EMPTY')" data-filter="EMPTY" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200">
-        🚪 BIN Trống
+      <button onclick="setQuickFilter('EMPTY')" data-filter="EMPTY" class="filter-chip px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200">
+        🚪 BIN Trống <span class="chip-count opacity-80"></span>
       </button>
     </div>
   </section>
 
   <!-- Table View -->
   <main class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-    <div class="overflow-x-auto max-h-[650px] custom-scroll">
+    <div class="overflow-x-auto max-h-[68vh] md:max-h-[650px] custom-scroll">
       <table class="w-full text-left text-xs border-collapse">
         <thead class="bg-emerald-900 text-white font-semibold">
           <tr>
-            <th onclick="toggleSort('bin')" class="py-3 px-3 w-16 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
-              <div class="flex items-center justify-center gap-1">1. BIN <span id="sort_icon_bin">⇅</span></div>
+            <th onclick="toggleSort('bin')" class="sticky-col-head bg-emerald-900 py-2.5 px-2.5 w-16 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
+              <div class="flex items-center justify-center gap-1">BIN <span id="sort_icon_bin">⇅</span></div>
             </th>
-            <th onclick="toggleSort('sku')" class="py-3 px-3 border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
-              <div class="flex items-center gap-1">2. SKU <span id="sort_icon_sku">⇅</span></div>
+            <th onclick="toggleSort('sku')" class="py-2.5 px-3 border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition min-w-[130px]">
+              <div class="flex items-center gap-1">SKU <span id="sort_icon_sku">⇅</span></div>
             </th>
-            <th onclick="toggleSort('remaining')" class="py-3 px-3 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
-              <div class="flex items-center justify-center gap-1">3. Utilization <span id="sort_icon_remaining">⇅</span></div>
+            <th onclick="toggleSort('remaining')" class="py-2.5 px-2.5 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition whitespace-nowrap">
+              <div class="flex items-center justify-center gap-1">Utilization <span id="sort_icon_remaining">⇅</span></div>
             </th>
-            <th onclick="toggleSort('prodDate')" class="py-3 px-3 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition bg-emerald-800/80">
-              <div class="flex items-center justify-center gap-1 text-amber-300">4. Prod.date <span id="sort_icon_prodDate">▼</span></div>
+            <th onclick="toggleSort('prodDate')" class="py-2.5 px-2.5 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition bg-emerald-800/80 whitespace-nowrap">
+              <div class="flex items-center justify-center gap-1 text-amber-300">Prod.date <span id="sort_icon_prodDate">▼</span></div>
             </th>
-            <th onclick="toggleSort('qtyPL')" class="py-3 px-3 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
-              <div class="flex items-center justify-center gap-1">5. Qty (PL) <span id="sort_icon_qtyPL">⇅</span></div>
+            <th onclick="toggleSort('qtyPL')" class="py-2.5 px-2.5 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition whitespace-nowrap">
+              <div class="flex items-center justify-center gap-1">Qty (PL) <span id="sort_icon_qtyPL">⇅</span></div>
             </th>
-            <th onclick="toggleSort('supplier')" class="py-3 px-3 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
-              <div class="flex items-center justify-center gap-1">6. Supplier <span id="sort_icon_supplier">⇅</span></div>
+            <th onclick="toggleSort('supplier')" class="py-2.5 px-2.5 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
+              <div class="flex items-center justify-center gap-1">Supplier <span id="sort_icon_supplier">⇅</span></div>
             </th>
-            <th onclick="toggleSort('capacity')" class="py-3 px-3 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
-              <div class="flex items-center justify-center gap-1">7. Capacity <span id="sort_icon_capacity">⇅</span></div>
+            <th onclick="toggleSort('capacity')" class="py-2.5 px-2.5 text-center border-b border-emerald-800 cursor-pointer hover:bg-emerald-800 transition">
+              <div class="flex items-center justify-center gap-1">Cap <span id="sort_icon_capacity">⇅</span></div>
             </th>
           </tr>
         </thead>
@@ -195,7 +227,10 @@
     </div>
   </main>
 
-  <!-- ================= POPUP 1: AI ĐANG DÙNG MÁY NÀY? (ĐẦU CA) ================= -->
+  <!-- Toast thông báo nổi -->
+  <div id="toastBox" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] hidden max-w-[90vw] px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold text-white bg-slate-900/95 border border-slate-700 transition-all"></div>
+
+  <!-- ================= POPUP 1: AI ĐANG DÙNG MÁY NÀY? ================= -->
   <div id="userSelectModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200">
       <div class="p-6 space-y-4">
@@ -245,14 +280,14 @@
           </div>
         </div>
 
-        <div class="space-y-2.5 pt-2">
-          <button onclick="sendErrorReport('ĐÃ XUẤT HẾT')" class="w-full py-3.5 px-4 bg-[#992222] hover:bg-[#801b1b] active:scale-[0.98] transition rounded-xl text-white font-black text-sm tracking-wide shadow-md uppercase">
+        <div id="reportButtonsGroup" class="space-y-2.5 pt-2">
+          <button onclick="sendErrorReport('ĐÃ XUẤT HẾT')" class="report-btn w-full py-3.5 px-4 bg-[#992222] hover:bg-[#801b1b] active:scale-[0.98] disabled:opacity-50 transition rounded-xl text-white font-black text-sm tracking-wide shadow-md uppercase">
             ĐÃ XUẤT HẾT
           </button>
-          <button onclick="sendErrorReport('SAI MẶT HÀNG')" class="w-full py-3.5 px-4 bg-[#b46908] hover:bg-[#9c5a05] active:scale-[0.98] transition rounded-xl text-white font-black text-sm tracking-wide shadow-md uppercase">
+          <button onclick="sendErrorReport('SAI MẶT HÀNG')" class="report-btn w-full py-3.5 px-4 bg-[#b46908] hover:bg-[#9c5a05] active:scale-[0.98] disabled:opacity-50 transition rounded-xl text-white font-black text-sm tracking-wide shadow-md uppercase">
             SAI MẶT HÀNG
           </button>
-          <button onclick="sendErrorReport('SAI DATE')" class="w-full py-3.5 px-4 bg-[#6f4284] hover:bg-[#5e3770] active:scale-[0.98] transition rounded-xl text-white font-black text-sm tracking-wide shadow-md uppercase">
+          <button onclick="sendErrorReport('SAI DATE')" class="report-btn w-full py-3.5 px-4 bg-[#6f4284] hover:bg-[#5e3770] active:scale-[0.98] disabled:opacity-50 transition rounded-xl text-white font-black text-sm tracking-wide shadow-md uppercase">
             SAI DATE
           </button>
         </div>
@@ -284,7 +319,20 @@
       "D59":36,"D61":36,"D10":34,"D08":34,"D06":34,"D04":34,"D02":34
     };
 
-    // ================= KÍCH HOẠT PWA & NÚT CÀI APP =================
+    // ================= TOAST THÔNG BÁO =================
+    let toastTimer = null;
+    function showToast(message, isError = false) {
+      const box = document.getElementById('toastBox');
+      box.innerText = message;
+      box.className = `fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] max-w-[90vw] px-4 py-2.5 rounded-xl shadow-xl text-xs font-bold text-white border transition-all ${
+        isError ? 'bg-red-700 border-red-500' : 'bg-slate-900/95 border-slate-700'
+      }`;
+      box.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => box.classList.add('hidden'), 2800);
+    }
+
+    // ================= KÍCH HOẠT PWA =================
     let deferredPrompt = null;
 
     if ('serviceWorker' in navigator) {
@@ -293,36 +341,43 @@
       });
     }
 
+    function showInstallButtons() {
+      document.getElementById('installAppBtn').classList.remove('hidden');
+      document.getElementById('installAppBtnDesktop').classList.remove('hidden');
+      document.getElementById('installAppBtnDesktop').classList.add('md:flex');
+    }
+
+    function hideInstallButtons() {
+      document.getElementById('installAppBtn').classList.add('hidden');
+      document.getElementById('installAppBtnDesktop').classList.add('hidden');
+      document.getElementById('installAppBtnDesktop').classList.remove('md:flex');
+    }
+
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      document.getElementById('installAppBtn').classList.remove('hidden');
+      showInstallButtons();
     });
 
-    // Hiển thị nút hướng dẫn cài cho iPhone nếu đang mở bằng Safari và chưa cài ra màn hình chính
     window.addEventListener('DOMContentLoaded', () => {
       const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-      if (isIOS && !isStandalone) {
-        document.getElementById('installAppBtn').classList.remove('hidden');
-      }
+      if (isIOS && !isStandalone) showInstallButtons();
     });
 
     async function triggerInstallPWA() {
       if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          document.getElementById('installAppBtn').classList.add('hidden');
-        }
+        if (outcome === 'accepted') hideInstallButtons();
         deferredPrompt = null;
       } else {
-        alert('📲 CÁCH CÀI APP LÊN MÀN HÌNH CHÍNH:\n\n• Trên iPhone (Safari): Bấm biểu tượng Chia sẻ (ô vuông mũi tên lên) ở dưới cùng -> chọn "Thêm vào Màn hình chính".\n• Trên Android (Chrome): Bấm dấu 3 chấm góc trên bên phải -> chọn "Cài đặt ứng dụng" hoặc "Thêm vào Màn hình chính".');
+        showToast('iPhone: Chia sẻ -> Thêm vào Màn hình chính | Android: Menu -> Cài đặt ứng dụng');
       }
     }
 
-    // ================= QUY ĐỔI TÊN VIẾT TẮT CHO 4 SKU FEST CASE =================
-   function getStandardAbbr(sku, desc) {
+    // ================= QUY ĐỔI 7 SKU =================
+    function getStandardAbbr(sku, desc) {
       const combined = `${sku || ''} ${desc || ''}`.toUpperCase().trim();
       if (!combined || combined.includes("CAN AI")) return "";
 
@@ -340,11 +395,32 @@
 
     let inventory = [];
     let currentQuickFilter = 'ALL';
-    let currentSortColumn = 'PROD_CLOSEST';
+    let currentWorkMode = 'INBOUND'; // 'INBOUND' hoặc 'FEFO'
+    let currentSortColumn = 'AUTO_MODE';
     let currentSortDirection = 'asc';
-    let selectedRowBin = null;
+    let selectedRowId = null;
     let activeModalItem = null;
     let currentOperator = '';
+    let isSendingReport = false;
+    let syncInterval = null;
+
+    function setWorkMode(mode) {
+      currentWorkMode = mode;
+      currentSortColumn = 'AUTO_MODE';
+      updateSortIcons();
+
+      const inBtn = document.getElementById('modeInboundBtn');
+      const fefoBtn = document.getElementById('modeFefoBtn');
+
+      if (mode === 'INBOUND') {
+        inBtn.className = 'px-3 py-1.5 rounded-md text-xs font-bold transition bg-emerald-800 text-white shadow-sm';
+        fefoBtn.className = 'px-3 py-1.5 rounded-md text-xs font-bold transition text-slate-600 hover:text-slate-900';
+      } else {
+        fefoBtn.className = 'px-3 py-1.5 rounded-md text-xs font-bold transition bg-red-700 text-white shadow-sm';
+        inBtn.className = 'px-3 py-1.5 rounded-md text-xs font-bold transition text-slate-600 hover:text-slate-900';
+      }
+      renderTable();
+    }
 
     function setQuickFilter(filterValue) {
       if (currentQuickFilter === filterValue && filterValue !== 'ALL') {
@@ -355,17 +431,17 @@
       document.querySelectorAll('.filter-chip').forEach(btn => {
         const val = btn.getAttribute('data-filter');
         if (val === filterValue) {
-          btn.className = 'filter-chip active px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-emerald-800 text-white border border-emerald-800';
+          btn.className = 'filter-chip active px-2.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm bg-emerald-800 text-white border border-emerald-800';
         } else if (val === 'EMPTY') {
-          btn.className = 'filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200';
+          btn.className = 'filter-chip px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200';
         } else {
-          btn.className = 'filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200';
+          btn.className = 'filter-chip px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 border border-slate-200';
         }
       });
 
       const searchEl = document.getElementById('searchInput');
       if (filterValue === 'ALL') {
-        searchEl.placeholder = '🔍 Tìm BIN, SKU, NCC (VD: OJT, D04...)...';
+        searchEl.placeholder = '🔍 Tìm BIN, SKU, NCC, ngày SX...';
       } else if (filterValue === 'EMPTY') {
         searchEl.placeholder = '🔍 Tìm tiếp trong danh sách BIN Trống...';
       } else {
@@ -375,14 +451,25 @@
       renderTable();
     }
 
+    function updateFilterCounts() {
+      const counts = { ALL: inventory.length, EMPTY: 0 };
+      inventory.forEach(item => {
+        if (item.qtyPL === 0) counts.EMPTY++;
+        if (item.isCase && item.shortName) {
+          counts[item.shortName] = (counts[item.shortName] || 0) + 1;
+        }
+      });
+
+      document.querySelectorAll('.filter-chip').forEach(btn => {
+        const key = btn.getAttribute('data-filter');
+        const span = btn.querySelector('.chip-count');
+        if (span) span.innerText = `(${counts[key] || 0})`;
+      });
+    }
+
     function handleSearchInput() {
       const val = document.getElementById('searchInput').value;
-      const clearBtn = document.getElementById('clearSearchBtn');
-      if (val.trim().length > 0) {
-        clearBtn.classList.remove('hidden');
-      } else {
-        clearBtn.classList.add('hidden');
-      }
+      document.getElementById('clearSearchBtn').classList.toggle('hidden', val.trim().length === 0);
       renderTable();
     }
 
@@ -392,13 +479,11 @@
       renderTable();
     }
 
+    // ================= QUẢN LÝ NGƯỜI DÙNG & LOG =================
     function initUserSession() {
       const savedRecent = JSON.parse(localStorage.getItem('kho_recent_users') || '["Mr Hậu"]');
       const lastUser = localStorage.getItem('kho_current_user') || '';
-
-      if (lastUser) {
-        document.getElementById('operatorInput').value = lastUser;
-      }
+      if (lastUser) document.getElementById('operatorInput').value = lastUser;
       renderRecentUsers(savedRecent);
       document.getElementById('userSelectModal').classList.remove('hidden');
     }
@@ -406,12 +491,10 @@
     function renderRecentUsers(usersList) {
       const section = document.getElementById('recentUsersSection');
       const container = document.getElementById('recentUsersList');
-
       if (!usersList || usersList.length === 0) {
         section.classList.add('hidden');
         return;
       }
-
       section.classList.remove('hidden');
       container.innerHTML = usersList.map(name => `
         <button onclick="selectQuickUser('${name.replace(/'/g, "\\'")}')" class="w-full py-2.5 px-4 bg-slate-50 hover:bg-sky-50 border border-slate-200 hover:border-sky-300 rounded-xl text-sm font-bold text-slate-800 text-center transition">
@@ -428,7 +511,7 @@
     function confirmOperator() {
       const inputVal = document.getElementById('operatorInput').value.trim();
       if (!inputVal) {
-        alert('Vui lòng nhập tên của bạn để bắt đầu ca làm việc!');
+        showToast('Vui lòng nhập tên của bạn để bắt đầu!', true);
         document.getElementById('operatorInput').focus();
         return;
       }
@@ -443,13 +526,12 @@
 
       document.getElementById('headerOperatorName').innerText = currentOperator;
       document.getElementById('userSelectModal').classList.add('hidden');
-
       logUserAccess(currentOperator);
     }
 
     function logUserAccess(operatorName) {
       try {
-        if (typeof ZALO_WEBHOOK_URL === 'undefined' || !ZALO_WEBHOOK_URL) return;
+        if (!ZALO_WEBHOOK_URL) return;
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         const isApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
         const deviceInfo = (isMobile ? "Điện thoại" : "Máy tính") + (isApp ? " (App PWA)" : " (Web)");
@@ -457,7 +539,8 @@
         fetch(ZALO_WEBHOOK_URL, {
           method: 'POST',
           mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          keepalive: true,
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: "LOG_ACCESS",
             operator: operatorName,
@@ -474,12 +557,11 @@
       document.getElementById('userSelectModal').classList.remove('hidden');
     }
 
+    // ================= XỬ LÝ NGÀY & ĐỒNG BỘ DỮ LIỆU =================
     function parseDateToObj(dateStr) {
       if (!dateStr || dateStr.trim() === '' || dateStr === '-') return null;
       const parts = dateStr.split('/');
-      if (parts.length === 3) {
-        return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-      }
+      if (parts.length === 3) return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
       return null;
     }
 
@@ -496,24 +578,17 @@
       }
       if (!isNaN(s) && Number(s) > 40000 && Number(s) < 60000) {
         const dateObj = new Date(Math.round((Number(s) - 25569) * 86400 * 1000));
-        const day = String(dateObj.getUTCDate()).padStart(2, '0');
-        const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
-        return `${day}/${month}/${dateObj.getUTCFullYear()}`;
+        return `${String(dateObj.getUTCDate()).padStart(2, '0')}/${String(dateObj.getUTCMonth() + 1).padStart(2, '0')}/${dateObj.getUTCFullYear()}`;
       }
       return s;
     }
 
     async function fetchSheetData(isManual = false) {
       const badge = document.getElementById('syncStatusBadge');
-      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-spin"></span> Đang đồng bộ...`;
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-spin"></span> Đang tải...`;
 
       try {
-        const fetchUrl = `${GVIZ_URL}&_nocache=${Date.now()}`;
-        const res = await fetch(fetchUrl, {
-          cache: 'no-store',
-          headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
-        });
-
+        const res = await fetch(`${GVIZ_URL}&_nocache=${Date.now()}`);
         if (!res.ok) throw new Error("HTTP " + res.status);
         const text = await res.text();
 
@@ -524,10 +599,11 @@
         processGridData(grid);
 
         const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Trực tuyến: ${timeStr}`;
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> ${timeStr}`;
+        if (isManual) showToast('✅ Đã cập nhật dữ liệu kho mới nhất!');
       } catch (err) {
         console.error("Lỗi đồng bộ GViz:", err);
-        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-400"></span> Lỗi tải dữ liệu`;
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-400"></span> Lỗi mạng`;
       }
     }
 
@@ -544,15 +620,14 @@
 
         if (binRegex.test(bin)) {
           const capacity = BIN_CAPACITY_MAP[bin] || (bin.startsWith('C') ? 22 : 34);
-
-          let prodDate = parseDate(row[2]);
-          let qtyPL = parseInt(row[3]) || 0;
-          let supplier = (row[6] || '').toString().trim();
-          let sku = (row[1] || row[19] || '').toString().trim();
-          let desc = (row[19] || row[1] || '').toString().trim();
-          let itemCode = (row[9] || '').toString().trim();
-          let isCase = `${sku} ${desc}`.toUpperCase().includes('CASE');
-          let shortName = getStandardAbbr(sku, desc);
+          const prodDate = parseDate(row[2]);
+          const qtyPL = parseInt(row[3]) || 0;
+          const supplier = (row[6] || '').toString().trim();
+          const sku = (row[1] || row[19] || '').toString().trim();
+          const desc = (row[19] || row[1] || '').toString().trim();
+          const itemCode = (row[9] || '').toString().trim();
+          const isCase = `${sku} ${desc}`.toUpperCase().includes('CASE');
+          const shortName = getStandardAbbr(sku, desc);
 
           rawRows.push({ bin, capacity, prodDate, qtyPL, supplier, sku, desc, itemCode, isCase, shortName });
         }
@@ -568,11 +643,8 @@
       Object.keys(grouped).forEach(bin => {
         const entries = grouped[bin];
         const withStock = entries.filter(e => e.qtyPL > 0 || e.sku !== '');
-        if (withStock.length > 0) {
-          finalRows.push(...withStock);
-        } else {
-          finalRows.push(entries[0]);
-        }
+        if (withStock.length > 0) finalRows.push(...withStock);
+        else finalRows.push(entries[0]);
       });
 
       const binTotalPLMap = {};
@@ -580,14 +652,15 @@
         binTotalPLMap[item.bin] = (binTotalPLMap[item.bin] || 0) + item.qtyPL;
       });
 
-      finalRows.forEach(item => {
-        const totalUsed = binTotalPLMap[item.bin] || 0;
-        item.remaining = Math.max(0, item.capacity - totalUsed);
+      finalRows.forEach((item, idx) => {
+        item._rowId = `${item.bin}_${idx}`;
+        item.remaining = Math.max(0, item.capacity - (binTotalPLMap[item.bin] || 0));
       });
 
       if (finalRows.length > 0) {
         inventory = finalRows;
         updateKPIs();
+        updateFilterCounts();
         renderTable();
       }
     }
@@ -595,21 +668,15 @@
     function updateKPIs() {
       const uniqueBins = [...new Set(inventory.map(i => i.bin))];
       const totalBins = uniqueBins.length;
-
-      const occupiedBins = uniqueBins.filter(b => {
-        const items = inventory.filter(i => i.bin === b);
-        return items.some(i => i.qtyPL > 0);
-      }).length;
-
+      const occupiedBins = uniqueBins.filter(b => inventory.some(i => i.bin === b && i.qtyPL > 0)).length;
       const emptyBins = totalBins - occupiedBins;
       const totalPL = inventory.reduce((sum, i) => sum + i.qtyPL, 0);
-
       const totalCap = uniqueBins.reduce((sum, b) => sum + (BIN_CAPACITY_MAP[b] || (b.startsWith('C') ? 22 : 34)), 0);
       const rate = totalCap > 0 ? Math.round((totalPL / totalCap) * 100) : 0;
 
       document.getElementById('kpiTotalBins').innerText = totalBins;
       document.getElementById('kpiTotalPL').innerText = totalPL.toLocaleString('vi-VN');
-      document.getElementById('kpiOccupancyRate').innerText = `Lấp đầy: ${rate}% / ${totalCap.toLocaleString('vi-VN')} PL`;
+      document.getElementById('kpiOccupancyRate').innerText = `Lấp đầy: ${rate}%`;
       document.getElementById('kpiOccupiedBins').innerText = occupiedBins;
       document.getElementById('kpiEmptyBins').innerText = emptyBins;
     }
@@ -633,6 +700,9 @@
         if (currentSortColumn === c) {
           el.innerText = currentSortDirection === 'asc' ? '▲' : '▼';
           el.className = 'text-amber-300 font-bold';
+        } else if (currentSortColumn === 'AUTO_MODE' && c === 'prodDate') {
+          el.innerText = currentWorkMode === 'FEFO' ? '▲' : '▼';
+          el.className = 'text-amber-300 font-bold';
         } else {
           el.innerText = '⇅';
           el.className = 'text-emerald-300/60 font-normal';
@@ -646,11 +716,12 @@
       return 3;
     }
 
-    function selectRow(binKey) {
-      selectedRowBin = binKey;
+    // ================= CHỌN DÒNG & BÁO LỖI ZALO =================
+    function selectRow(rowId) {
+      selectedRowId = rowId;
       renderTable();
 
-      const item = inventory.find(i => i.bin === binKey);
+      const item = inventory.find(i => i._rowId === rowId);
       if (item) {
         activeModalItem = item;
         document.getElementById('modalBin').innerText = item.bin;
@@ -667,7 +738,11 @@
     }
 
     async function sendErrorReport(errorType) {
-      if (!activeModalItem) return;
+      if (!activeModalItem || isSendingReport) return;
+      isSendingReport = true;
+
+      const btns = document.querySelectorAll('.report-btn');
+      btns.forEach(b => b.disabled = true);
 
       const payload = {
         bin: activeModalItem.bin,
@@ -682,16 +757,21 @@
         await fetch(ZALO_WEBHOOK_URL, {
           method: 'POST',
           mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          keepalive: true,
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
         });
-        alert(`✅ Đã gửi báo lỗi [${payload.errorType}] tại vị trí ${payload.bin} về nhóm Zalo!`);
+        showToast(`✅ Đã gửi báo cáo [${payload.errorType}] tại BIN ${payload.bin}!`);
         closeErrorModal();
       } catch (err) {
-        alert('Có lỗi khi gửi tin nhắn Zalo, vui lòng thử lại.');
+        showToast('❌ Lỗi gửi tin nhắn Zalo, vui lòng thử lại.', true);
+      } finally {
+        isSendingReport = false;
+        btns.forEach(b => b.disabled = false);
       }
     }
 
+    // ================= RENDER BẢNG =================
     function renderTable() {
       const tbody = document.getElementById('inventoryTableBody');
       const search = document.getElementById('searchInput').value.toLowerCase().trim();
@@ -705,40 +785,50 @@
 
         if (search) {
           const matchStr = `${item.bin} ${item.shortName} ${item.sku} ${item.desc} ${item.supplier} ${item.prodDate} ${item.itemCode}`.toLowerCase();
-          const keywords = search.split(/\s+/);
-          const isMatchAll = keywords.every(kw => matchStr.includes(kw));
-          if (!isMatchAll) return false;
+          if (!search.split(/\s+/).every(kw => matchStr.includes(kw))) return false;
         }
         return true;
       });
 
-      const now = new Date().getTime();
+      const now = Date.now();
 
       filtered.sort((a, b) => {
-        const rankA = getPriorityRank(a);
-        const rankB = getPriorityRank(b);
+        if (currentSortColumn === 'AUTO_MODE') {
+          const rankA = getPriorityRank(a);
+          const rankB = getPriorityRank(b);
 
-        if (currentSortColumn === 'PROD_CLOSEST') {
-          // Ưu tiên nhóm: 1 (Còn chỗ nhập thêm) -> 2 (BIN Đầy) -> 3 (BIN Trống)
-          if (rankA !== rankB) return rankA - rankB;
+          if (currentWorkMode === 'INBOUND') {
+            // Nhập kho: 1 (Còn chỗ) -> 2 (BIN Đầy) -> 3 (BIN Trống)
+            if (rankA !== rankB) return rankA - rankB;
+            if (rankA === 3) return a.bin.localeCompare(b.bin);
 
-          // Nếu cùng là BIN Trống (rank 3) thì xếp theo tên BIN A -> Z
-          if (rankA === 3) return a.bin.localeCompare(b.bin);
+            const dateA = parseDateToObj(a.prodDate);
+            const dateB = parseDateToObj(b.prodDate);
+            if (dateA && dateB) {
+              const diffA = Math.abs(dateA.getTime() - now);
+              const diffB = Math.abs(dateB.getTime() - now);
+              if (diffA !== diffB) return diffA - diffB;
+              if (b.remaining !== a.remaining) return b.remaining - a.remaining;
+              return a.bin.localeCompare(b.bin);
+            }
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+          } else {
+            // Xuất FEFO: Có hàng lên trước (date cũ nhất lên đầu), BIN Trống xuống cuối
+            const isEmptyA = a.qtyPL === 0 ? 1 : 0;
+            const isEmptyB = b.qtyPL === 0 ? 1 : 0;
+            if (isEmptyA !== isEmptyB) return isEmptyA - isEmptyB;
+            if (isEmptyA === 1) return a.bin.localeCompare(b.bin);
 
-          // Trong cùng nhóm 1 hoặc cùng nhóm 2: ưu tiên ngày SX gần hiện tại nhất (FEFO)
-          const dateA = parseDateToObj(a.prodDate);
-          const dateB = parseDateToObj(b.prodDate);
-
-          if (dateA && dateB) {
-            const diffA = Math.abs(dateA.getTime() - now);
-            const diffB = Math.abs(dateB.getTime() - now);
-
-            if (diffA !== diffB) return diffA - diffB;
-            if (b.remaining !== a.remaining) return b.remaining - a.remaining;
+            const dateA = parseDateToObj(a.prodDate);
+            const dateB = parseDateToObj(b.prodDate);
+            if (dateA && dateB && dateA.getTime() !== dateB.getTime()) {
+              return dateA.getTime() - dateB.getTime();
+            }
+            if (!dateA) return 1;
+            if (!dateB) return -1;
             return a.bin.localeCompare(b.bin);
           }
-          if (!dateA) return 1;
-          if (!dateB) return -1;
         }
 
         if (currentSortColumn === 'prodDate') {
@@ -751,9 +841,9 @@
         }
 
         if (['qtyPL', 'remaining', 'capacity'].includes(currentSortColumn)) {
-          const valA = a[currentSortColumn] || 0;
-          const valB = b[currentSortColumn] || 0;
-          return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+          return currentSortDirection === 'asc'
+            ? (a[currentSortColumn] || 0) - (b[currentSortColumn] || 0)
+            : (b[currentSortColumn] || 0) - (a[currentSortColumn] || 0);
         }
 
         const valA = (a[currentSortColumn] || '').toString();
@@ -769,41 +859,42 @@
       tbody.innerHTML = filtered.map(item => {
         let utilBadge = '';
         if (item.remaining <= 0 && item.qtyPL > 0) {
-          utilBadge = `<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">BIN Đầy</span>`;
+          utilBadge = `<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-200 whitespace-nowrap">BIN Đầy</span>`;
         } else if (item.qtyPL === 0) {
-          utilBadge = `<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Trống ${item.capacity} PL</span>`;
+          utilBadge = `<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">Trống ${item.capacity} PL</span>`;
         } else {
-          utilBadge = `<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">Nhập thêm: ${item.remaining} PL</span>`;
+          utilBadge = `<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200 whitespace-nowrap">Nhập thêm: ${item.remaining} PL</span>`;
         }
 
         const dateHtml = item.prodDate
           ? `<span class="font-mono font-bold text-red-600">${item.prodDate}</span>`
           : `<span class="text-slate-300">-</span>`;
 
-        const isSelected = selectedRowBin === item.bin;
-        const rowClass = isSelected 
-          ? 'row-selected border-b border-sky-300 cursor-pointer transition' 
-          : 'hover:bg-slate-50 transition border-b border-slate-100 cursor-pointer';
+        const isSelected = selectedRowId === item._rowId;
+        const rowClass = isSelected
+          ? 'row-selected border-b border-sky-300 cursor-pointer transition'
+          : 'bg-white hover:bg-slate-50 transition border-b border-slate-100 cursor-pointer';
 
-        const skuHtml = item.sku
-          ? `<span class="text-slate-800 font-semibold">${item.sku}</span>`
-          : `<span class="text-slate-300 italic font-normal">Ô trống (chưa có hàng)</span>`;
+        let skuHtml = `<span class="text-slate-300 italic font-normal">Ô trống</span>`;
+        if (item.shortName) {
+          skuHtml = `<div class="text-slate-900 font-bold leading-tight">${item.shortName}</div><div class="text-[10px] text-slate-400 truncate max-w-[160px]">${item.sku}</div>`;
+        } else if (item.sku) {
+          skuHtml = `<span class="text-slate-800 font-semibold">${item.sku}</span>`;
+        }
 
         return `
-          <tr onclick="selectRow('${item.bin}')" class="${rowClass}">
-            <td class="py-2.5 px-3 text-center">
-              <span class="inline-block px-2 py-0.5 bg-slate-900 text-white font-mono font-bold text-xs rounded shadow-sm">
-                ${item.bin}
-              </span>
+          <tr onclick="selectRow('${item._rowId}')" class="${rowClass}">
+            <td class="sticky-col-cell bg-white py-2.5 px-2.5 text-center border-r border-slate-100">
+              <span class="inline-block px-2 py-0.5 bg-slate-900 text-white font-mono font-bold text-xs rounded shadow-sm">${item.bin}</span>
             </td>
-            <td class="py-2.5 px-3 font-medium">${skuHtml}</td>
-            <td class="py-2.5 px-3 text-center">${utilBadge}</td>
-            <td class="py-2.5 px-3 text-center">${dateHtml}</td>
-            <td class="py-2.5 px-3 text-center font-bold font-mono">${item.qtyPL > 0 ? item.qtyPL : `<span class="text-slate-300 font-normal">0</span>`}</td>
-            <td class="py-2.5 px-3 text-center">
+            <td class="py-2 px-3">${skuHtml}</td>
+            <td class="py-2 px-2.5 text-center">${utilBadge}</td>
+            <td class="py-2 px-2.5 text-center whitespace-nowrap">${dateHtml}</td>
+            <td class="py-2 px-2.5 text-center font-bold font-mono">${item.qtyPL > 0 ? item.qtyPL : `<span class="text-slate-300 font-normal">0</span>`}</td>
+            <td class="py-2 px-2.5 text-center">
               ${item.supplier ? `<span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[11px] font-medium border border-slate-200">${item.supplier}</span>` : `<span class="text-slate-300">-</span>`}
             </td>
-            <td class="py-2.5 px-3 text-center font-mono font-medium">${item.capacity}</td>
+            <td class="py-2 px-2.5 text-center font-mono font-medium">${item.capacity}</td>
           </tr>
         `;
       }).join('');
@@ -813,7 +904,8 @@
       const dataToExport = inventory.map(item => ({
         "BIN": item.bin,
         "SKU": item.sku,
-        "Utilization": item.remaining <= 0 ? "BIN Đầy" : `Nhập thêm: ${item.remaining} PL`,
+        "Tên gọn": item.shortName,
+        "Utilization": item.qtyPL === 0 ? `Trống ${item.capacity} PL` : (item.remaining <= 0 ? "BIN Đầy" : `Nhập thêm: ${item.remaining} PL`),
         "Prod.date": item.prodDate,
         "Qty (PL)": item.qtyPL,
         "Supplier": item.supplier,
@@ -826,10 +918,32 @@
       XLSX.writeFile(wb, `TonKho_FEFO_${new Date().toISOString().slice(0, 10)}.xlsx`);
     }
 
+    // ================= ĐỒNG BỘ THÔNG MINH =================
+    function startAutoSync() {
+      stopAutoSync();
+      syncInterval = setInterval(() => fetchSheetData(false), 30000);
+    }
+
+    function stopAutoSync() {
+      if (syncInterval) {
+        clearInterval(syncInterval);
+        syncInterval = null;
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopAutoSync();
+      } else {
+        fetchSheetData(false);
+        startAutoSync();
+      }
+    });
+
     window.addEventListener('DOMContentLoaded', () => {
       initUserSession();
       fetchSheetData();
-      setInterval(() => fetchSheetData(false), 30000);
+      startAutoSync();
     });
   </script>
 </body>
