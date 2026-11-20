@@ -126,21 +126,30 @@
       <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 text-[11px] font-bold flex items-center justify-center" title="Xóa tìm kiếm">✕</button>
     </div>
 
-    <div id="quickFilterButtons" class="flex flex-wrap items-center gap-1.5 flex-1">
+<div id="quickFilterButtons" class="flex flex-wrap items-center gap-1.5 flex-1">
       <button onclick="setQuickFilter('ALL')" data-filter="ALL" class="filter-chip active px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-emerald-800 text-white border border-emerald-800">
         Tất cả
       </button>
-      <button onclick="setQuickFilter('HC SILVER 250')" data-filter="HC SILVER 250" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
-        HC SILVER 250
+      <button onclick="setQuickFilter('Silver 330 Tết')" data-filter="Silver 330 Tết" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
+        Silver 330 Tết
       </button>
-      <button onclick="setQuickFilter('HC SILVER 330')" data-filter="HC SILVER 330" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
-        HC SILVER 330
+      <button onclick="setQuickFilter('Silver 250 Tết')" data-filter="Silver 250 Tết" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
+        Silver 250 Tết
       </button>
-      <button onclick="setQuickFilter('TC CY 330')" data-filter="TC CY 330" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
-        TC CY 330
+      <button onclick="setQuickFilter('Ken 330')" data-filter="Ken 330" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
+        Ken 330
       </button>
-      <button onclick="setQuickFilter('TC CY 250')" data-filter="TC CY 250" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
-        TC CY 250
+      <button onclick="setQuickFilter('Ti Cry 330')" data-filter="Ti Cry 330" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
+        Ti Cry 330
+      </button>
+      <button onclick="setQuickFilter('Ti 330')" data-filter="Ti 330" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
+        Ti 330
+      </button>
+      <button onclick="setQuickFilter('Ti Smooth')" data-filter="Ti Smooth" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
+        Ti Smooth
+      </button>
+      <button onclick="setQuickFilter('Ti Cry 250')" data-filter="Ti Cry 250" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-800 border border-slate-200">
+        Ti Cry 250
       </button>
       <button onclick="setQuickFilter('EMPTY')" data-filter="EMPTY" class="filter-chip px-3 py-2 rounded-lg text-xs font-bold transition bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200">
         🚪 BIN Trống
@@ -313,15 +322,18 @@
     }
 
     // ================= QUY ĐỔI TÊN VIẾT TẮT CHO 4 SKU FEST CASE =================
-    function getStandardAbbr(sku, desc) {
+   function getStandardAbbr(sku, desc) {
       const combined = `${sku || ''} ${desc || ''}`.toUpperCase().trim();
       if (!combined || combined.includes("CAN AI")) return "";
 
       if (combined.includes("CASE")) {
-        if (combined.includes("SILVER 250")) return "HC SILVER 250";
-        if (combined.includes("SILVER 330")) return "HC SILVER 330";
-        if (combined.includes("CRYS 330") || combined.includes("CRYSTAL 330")) return "TC CY 330";
-        if (combined.includes("CRYS 250") || combined.includes("CRYSTAL 250")) return "TC CY 250";
+        if (combined.includes("SILVER 330")) return "Silver 330 Tết";
+        if (combined.includes("SILVER 250")) return "Silver 250 Tết";
+        if (combined.includes("KEN FEST") || combined.includes("KEN 330")) return "Ken 330";
+        if (combined.includes("CRYS 330") || combined.includes("CRYSTAL 330")) return "Ti Cry 330";
+        if (combined.includes("CRYS 250") || combined.includes("CRYSTAL 250")) return "Ti Cry 250";
+        if (combined.includes("SMOOTH")) return "Ti Smooth";
+        if (combined.includes("TIGER 330") || combined.includes("TIGER330")) return "Ti 330";
       }
       return "";
     }
