@@ -60,45 +60,6 @@
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans p-2 md:p-4 relative">
 
-  <!-- Header -->
-  <header class="bg-emerald-900 text-white rounded-xl shadow-md p-3 md:p-4 mb-3">
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2.5">
-          <div class="p-1.5 md:p-2 bg-emerald-800/80 rounded-lg text-xl md:text-2xl">📦</div>
-          <h1 class="text-base md:text-xl font-bold tracking-tight leading-tight">Kho Carton & Bao Bì (C & D)</h1>
-        </div>
-        <button id="installAppBtn" onclick="triggerInstallPWA()" class="hidden md:hidden px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition text-xs font-bold rounded-lg shadow-sm flex items-center gap-1 text-white border border-indigo-400/50">
-          📲 Cài App
-        </button>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-1.5 md:gap-2">
-        <button onclick="openUserModal()" class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-sky-700 hover:bg-sky-600 active:scale-95 transition border border-sky-500/50 rounded-lg text-xs font-bold text-white shadow-sm">
-          👤 <span id="headerOperatorName">Chưa chọn tên</span>
-          <span class="text-[10px] bg-sky-900/60 px-1.5 py-0.5 rounded ml-0.5">Đổi</span>
-        </button>
-
-        <span id="syncStatusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-800/70 border border-emerald-600/50 rounded-lg text-[11px] md:text-xs font-medium text-emerald-100">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          Đang kết nối...
-        </span>
-
-        <button onclick="fetchSheetData(true)" class="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 active:scale-95 transition text-xs font-medium rounded-lg shadow-sm flex items-center gap-1">
-          🔄 <span class="hidden sm:inline">Đồng bộ</span>
-        </button>
-
-        <button onclick="exportToExcel()" class="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 active:scale-95 transition text-xs font-medium rounded-lg shadow-sm flex items-center gap-1 text-white">
-          📥 <span class="hidden sm:inline">Excel</span>
-        </button>
-
-        <button id="installAppBtnDesktop" onclick="triggerInstallPWA()" class="hidden px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition text-xs font-bold rounded-lg shadow-sm items-center gap-1 text-white border border-indigo-400/50">
-          📲 Cài App
-        </button>
-      </div>
-    </div>
-  </header>
-
   <!-- KPI Cards (Thu gọn tối ưu cho Mobile, mở rộng trên PC) -->
 <!-- Header (Gộp gọn 1 dòng trên Mobile, đầy đủ trên PC) -->
   <header class="bg-emerald-900 text-white rounded-xl shadow-md px-3 py-2 md:p-4 mb-2 md:mb-3">
